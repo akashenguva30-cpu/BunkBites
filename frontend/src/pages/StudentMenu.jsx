@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import CampusPay from '../components/CampusPay';
 import { resolveImageUrl } from '../utils/imageUtils';
 import StudentNavbar from '../components/StudentNavbar';
+import { getNextSlogan, getNextSubSlogan } from '../utils/sloganEngine';
 
 export default function StudentMenu() {
   const [categories, setCategories] = useState([]);
@@ -21,11 +22,15 @@ export default function StudentMenu() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [activeQueue, setActiveQueue] = useState(null);
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [slogan, setSlogan] = useState('');
+  const [subSlogan, setSubSlogan] = useState('');
 
   useEffect(() => {
     fetchProfile();
     fetchCategories();
     fetchActiveOrder();
+    setSlogan(getNextSlogan());
+    setSubSlogan(getNextSubSlogan());
   }, []);
 
   useEffect(() => {
@@ -383,41 +388,184 @@ export default function StudentMenu() {
         )}
 
         {/* Hero Section */}
-        <div style={{ margin: '40px 0 32px 0' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: '700', margin: '0 0 8px 0', color: '#222' }}>
-            {profileName ? `${getGreeting()}, ${profileName}!` : 'Hungry?'}
-          </h1>
-          <p style={{ fontSize: '16px', color: '#666', margin: '0 0 24px 0' }}>
-            Find the best campus food, grab a token, and skip the line.
-          </p>
-
-          <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }}>
-            <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#999', display: 'flex', alignItems: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        <div style={{ margin: '40px 0 32px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '40px' }}>
+          
+          {/* Left Column */}
+          <div style={{ flex: '1 1 50%', minWidth: '320px', maxWidth: '600px' }}>
+            {/* Playful Eyebrow */}
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '8px' }}>
+              <span style={{ 
+                fontSize: '13px', 
+                fontWeight: '800', 
+                color: '#e74c3c', 
+                letterSpacing: '1px',
+                textTransform: 'uppercase'
+              }}>
+                Good Evening
+              </span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', top: '-10px', right: '-24px', opacity: 0.8 }}>
+                <path d="M12 4L12 10M12 14L12 20M4 12L10 12M14 12L20 12M6 6L10 10M14 14L18 18M6 18L10 14M14 10L18 6" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" />
               </svg>
-            </span>
-            <input 
-              type="text" 
-              placeholder="Search for meals, snacks, or drinks..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
-              style={{ 
-                width: '100%', 
-                padding: '16px 16px 16px 48px', 
-                fontSize: '16px',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                backgroundColor: 'white',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-              }}
-              onFocus={(e) => { e.target.style.borderColor = '#e74c3c'; e.target.style.boxShadow = '0 2px 8px rgba(231, 76, 60, 0.1)'; }}
-              onBlur={(e) => { e.target.style.borderColor = '#e0e0e0'; e.target.style.boxShadow = '0 2px 6px rgba(0,0,0,0.02)'; }}
-            />
+            </div>
+            
+            <h1 style={{ fontSize: '42px', fontWeight: '800', margin: '0 0 12px 0', color: '#222', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+              Good evening{profileName ? ', ' : ''}<span style={{ color: '#e74c3c' }}>{profileName ? profileName : ''}</span>!
+            </h1>
+            <p style={{ fontSize: '18px', color: '#666', margin: '0 0 24px 0', fontWeight: '500' }}>
+              Find the best campus food, grab a token, and skip the line.
+            </p>
+
+            <div style={{ position: 'relative', width: '100%' }}>
+              <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#999', display: 'flex', alignItems: 'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <input 
+                type="text" 
+                placeholder="Search for meals, snacks, or drinks..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                style={{ 
+                  width: '100%', 
+                  padding: '16px 16px 16px 48px', 
+                  fontSize: '16px',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '12px',
+                  backgroundColor: 'white',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#e74c3c'; e.target.style.boxShadow = '0 4px 12px rgba(231, 76, 60, 0.1)'; }}
+                onBlur={(e) => { e.target.style.borderColor = '#e0e0e0'; e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)'; }}
+              />
+            </div>
           </div>
+          
+          {/* Dynamic Slogan Banner */}
+          {slogan && (
+            <div style={{
+              flex: '1 1 40%',
+              minWidth: '320px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              position: 'relative',
+              padding: '20px 20px 40px 20px'
+            }}>
+              {/* Giant faint quotation mark */}
+              <div style={{
+                position: 'absolute',
+                top: '-30px',
+                left: '-10px',
+                fontSize: '180px',
+                fontWeight: '900',
+                color: '#fadcd3', // Peach color for quote
+                fontFamily: 'serif, "Georgia", "Times New Roman"',
+                lineHeight: 1,
+                zIndex: 0,
+                pointerEvents: 'none',
+                opacity: 0.7
+              }}>
+                "
+              </div>
+              
+              <div className="slogan-animate" style={{ position: 'relative', zIndex: 1 }}>
+                
+                {/* BUNKBites SAYS Eyebrow */}
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '800', 
+                    letterSpacing: '1.2px', 
+                    color: '#e74c3c', 
+                    textTransform: 'uppercase',
+                  }}>
+                    BUNKBites <span style={{ color: '#888' }}>SAYS</span>
+                  </span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ marginLeft: '8px', transform: 'rotate(15deg)' }}>
+                    <path d="M2 12C8 4 16 4 22 12" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M20 8L22 12L18 14" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                
+                {/* Main Slogan */}
+                <h2 style={{
+                  margin: 0,
+                  fontSize: 'clamp(36px, 4vw, 48px)',
+                  fontWeight: '900',
+                  color: '#2a2a2a',
+                  lineHeight: '1.05',
+                  letterSpacing: '-1px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  {(() => {
+                    const match = slogan.match(/^([^.:!?]+[:.!?])\s*(.*)$/);
+                    if (match && match[1].length < 20) {
+                      return <><span style={{ color: '#e74c3c' }}>{match[1]}</span> {match[2]}</>;
+                    }
+                    const firstSpace = slogan.indexOf(' ');
+                    if (firstSpace !== -1 && firstSpace < 12) {
+                      return <><span style={{ color: '#e74c3c' }}>{slogan.substring(0, firstSpace)}</span> {slogan.substring(firstSpace + 1)}</>;
+                    }
+                    return slogan;
+                  })()}
+                </h2>
+                
+                {/* Hand-drawn underline */}
+                <svg width="120" height="12" viewBox="0 0 120 12" fill="none" style={{ marginTop: '24px', marginBottom: '12px' }}>
+                   <path d="M2 10C30 3 80 1 118 8" stroke="#e74c3c" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+
+                {/* Sub slogan */}
+                <p style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  fontWeight: '500',
+                  color: '#888',
+                  fontStyle: 'italic',
+                  fontFamily: 'serif, "Georgia"',
+                }}>
+                  {subSlogan}
+                </p>
+                
+                {/* SVG doodles scattered around */}
+                <svg width="60" height="70" viewBox="0 0 60 70" fill="none" style={{ position: 'absolute', right: '5%', bottom: '-30px', opacity: 0.9, transform: 'rotate(15deg)' }}>
+                  <rect x="20" y="30" width="22" height="32" rx="2" stroke="#222" strokeWidth="2.5" fill="white" />
+                  <path d="M18 30H44" stroke="#222" strokeWidth="2.5" strokeLinecap="round" />
+                  <path d="M31 12L31 30" stroke="#e74c3c" strokeWidth="2.5" strokeLinecap="round" />
+                  <circle cx="26" cy="46" r="2" fill="#222" />
+                  <circle cx="36" cy="46" r="2" fill="#222" />
+                  <path d="M28 52 Q31 56 34 52" stroke="#222" strokeWidth="2" fill="none" strokeLinecap="round" />
+                </svg>
+                
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" style={{ position: 'absolute', right: '35%', top: '-10px', opacity: 0.6 }}>
+                  <path d="M15 5L15 25M5 15L25 15M8 8L22 22M8 22L22 8" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                
+              </div>
+              <style>
+                {`
+                  .slogan-animate {
+                    animation: sloganFadeInUp 0.4s ease-out;
+                  }
+                  @media (prefers-reduced-motion: reduce) {
+                    .slogan-animate {
+                      animation: none !important;
+                    }
+                  }
+                  @keyframes sloganFadeInUp {
+                    from { opacity: 0; transform: translateY(8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                  }
+                `}
+              </style>
+            </div>
+          )}
         </div>
 
         {/* Categories */}

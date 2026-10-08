@@ -1,148 +1,138 @@
 package com.campus.canteen.controller;
 
+import com.campus.canteen.dto.CartValidationResult;
 import com.campus.canteen.dto.MessageResponse;
 import com.campus.canteen.dto.OrderRequest;
+import com.campus.canteen.dto.RazorpayOrderResponse;
+import com.campus.canteen.dto.RazorpayVerificationRequest;
+import com.campus.canteen.exception.PaymentFailedException;
 import com.campus.canteen.model.*;
 import com.campus.canteen.repository.*;
+import com.campus.canteen.service.OrderService;
+import com.campus.canteen.service.RazorpayService;
+import com.razorpay.RazorpayException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class OrderController {
 
+    @Autowired private OrderService orderService;
+    @Autowired private RazorpayService razorpayService;
     @Autowired private OrderRepository orderRepository;
-    @Autowired private MenuItemRepository menuItemRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired private TokenRepository tokenRepository;
-    @Autowired private OrderStatusHistoryRepository orderStatusHistoryRepository;
-    @Autowired private NotificationRepository notificationRepository;
 
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
-    @Transactional
     public ResponseEntity<?> createOrder(@RequestBody OrderRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        User student = userRepository.findByUsername(username).orElse(null);
+        User student = userRepository.findByUsername(authentication.getName()).orElse(null);
         if (student == null) return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
 
-        Order order = new Order();
-        order.setStudent(student);
-        order.setStatus(OrderStatus.PLACED);
-
-        List<OrderItem> orderItems = new ArrayList<>();
-        BigDecimal totalAmount = BigDecimal.ZERO;
-
-        for (OrderRequest.OrderItemRequest itemReq : request.getItems()) {
-            MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId()).orElse(null);
-            if (menuItem == null || !menuItem.isAvailable()) {
-                return ResponseEntity.badRequest().body(new MessageResponse("Error: Item unavailable or not found"));
-            }
-
-            OrderItem orderItem = new OrderItem();
-            orderItem.setOrder(order);
-            orderItem.setMenuItem(menuItem);
-            orderItem.setQuantity(itemReq.getQuantity());
-            orderItem.setUnitPrice(menuItem.getPrice());
-            
-            BigDecimal subtotal = menuItem.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
-            orderItem.setSubtotal(subtotal);
-            orderItems.add(orderItem);
-
-            totalAmount = totalAmount.add(subtotal);
-        }
-
-        order.setItems(orderItems);
-        order.setTotalAmount(totalAmount);
-
-        // Simulated Payment Processing
-        String paymentDetails = request.getPaymentDetails();
-        boolean isPaymentSuccess = true;
-        if (paymentDetails != null && paymentDetails.toLowerCase().contains("fail")) {
-            isPaymentSuccess = false;
-        }
-
-        com.campus.canteen.model.PaymentMethod paymentMethod = request.getPaymentMethod();
-        if (com.campus.canteen.model.PaymentMethod.WALLET.equals(paymentMethod)) {
-            if (student.getWalletBalance().compareTo(totalAmount) < 0) {
-                isPaymentSuccess = false;
-            }
-        }
-
-        String txnRef = "CPX" + System.currentTimeMillis();
-
-        if (!isPaymentSuccess) {
-            java.util.Map<String, Object> failedResponse = new java.util.HashMap<>();
+        try {
+            Order order = orderService.createOrder(request, student);
+            return ResponseEntity.ok(order);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
+        } catch (PaymentFailedException e) {
+            Map<String, Object> failedResponse = new HashMap<>();
             failedResponse.put("status", "FAILED");
-            if (com.campus.canteen.model.PaymentMethod.WALLET.equals(paymentMethod) && student.getWalletBalance().compareTo(totalAmount) < 0) {
-                failedResponse.put("message", "Insufficient Campus Wallet balance.");
-            } else {
-                failedResponse.put("message", "Your payment could not be completed.");
-            }
-            failedResponse.put("transactionReference", txnRef);
-            
-            // Note: Per user request, "payment fails cleanly, payment status = FAILED if a payment attempt is recorded". 
-            // We're returning 400 immediately, but this meets the cleanly failing condition.
+            failedResponse.put("message", e.getMessage());
+            failedResponse.put("transactionReference", e.getTransactionReference());
             return ResponseEntity.badRequest().body(failedResponse);
         }
+    }
 
-        // Deduct wallet balance
-        if (com.campus.canteen.model.PaymentMethod.WALLET.equals(paymentMethod)) {
-            student.setWalletBalance(student.getWalletBalance().subtract(totalAmount));
-            userRepository.save(student);
+    @PostMapping("/razorpay/create-order")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<?> createRazorpayOrder(@RequestBody OrderRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User student = userRepository.findByUsername(authentication.getName()).orElse(null);
+        if (student == null) return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
+
+        try {
+            CartValidationResult validationResult = orderService.validateAndCalculateCart(request.getItems());
+            
+            BigDecimal totalAmount = validationResult.getTotalAmount();
+            long amountInPaise = totalAmount.multiply(new BigDecimal("100")).longValue();
+            String receipt = "CPX_RZP_" + System.currentTimeMillis();
+            
+            com.razorpay.Order razorpayOrder = razorpayService.createRazorpayOrder(amountInPaise, receipt);
+            String razorpayOrderId = razorpayOrder.get("id");
+            
+            orderService.createPendingRazorpayOrder(request, student, razorpayOrderId);
+
+            RazorpayOrderResponse response = new RazorpayOrderResponse();
+            response.setRazorpayOrderId(razorpayOrderId);
+            response.setAmount(amountInPaise);
+            response.setCurrency("INR");
+            response.setKeyId(razorpayService.getKeyId());
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
+        } catch (RazorpayException e) {
+            Map<String, Object> failedResponse = new HashMap<>();
+            failedResponse.put("status", "FAILED");
+            failedResponse.put("message", "Could not initialize Razorpay payment.");
+            return ResponseEntity.badRequest().body(failedResponse);
+        } catch (Throwable e) {
+            e.printStackTrace(System.err);
+            return ResponseEntity.internalServerError().body(new MessageResponse("Internal error: " + e.toString()));
         }
+    }
 
-        // If success, save order and create payment record
-        orderRepository.save(order); // Save order first to get ID for Payment
+    @PostMapping("/razorpay/verify")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<?> verifyRazorpayOrder(@RequestBody RazorpayVerificationRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User student = userRepository.findByUsername(authentication.getName()).orElse(null);
+        if (student == null) return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
 
-        Payment payment = new Payment();
-        payment.setOrder(order);
-        payment.setAmount(totalAmount);
-        payment.setMethod(request.getPaymentMethod());
-        payment.setStatus(PaymentStatus.SUCCESS);
-        payment.setTransactionReference(txnRef);
-        order.setPayment(payment);
+        try {
+            boolean isValid = razorpayService.verifySignature(
+                request.getRazorpayOrderId(), 
+                request.getRazorpayPaymentId(), 
+                request.getRazorpaySignature()
+            );
 
-        // Token Generation
-        Token token = new Token();
-        token.setOrder(order);
-        long count = tokenRepository.count();
-        token.setTokenNumber(String.format("A%03d", count + 1));
-        order.setToken(token);
-        
-        // Save cascade will update token and payment implicitly if configured, but let's be explicit if needed.
-        // Actually, token and payment don't cascade persist by default unless configured.
-        // Let's assume orderRepository.save handles it or we need to save them via repositories.
-        // Wait, Order.java may have CascadeType.ALL, let's check.
-        // For safety, saving the order again.
-        orderRepository.save(order);
+            if (!isValid) {
+                return ResponseEntity.badRequest().body(new MessageResponse("Error: Invalid Razorpay signature"));
+            }
 
-        // Create success notification
-        Notification notification = new Notification();
-        notification.setUser(student);
-        notification.setMessage("Payment successful. Your order " + token.getTokenNumber() + " is confirmed.");
-        notificationRepository.save(notification);
-
-        return ResponseEntity.ok(order);
+            Order order = orderService.verifyAndPlaceRazorpayOrder(
+                request.getRazorpayOrderId(),
+                request.getRazorpayPaymentId(),
+                student
+            );
+            
+            return ResponseEntity.ok(order);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
+        } catch (Throwable e) {
+            e.printStackTrace(System.err);
+            return ResponseEntity.internalServerError().body(new MessageResponse("Internal error: " + e.toString()));
+        }
     }
 
     @GetMapping
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<?> getMyOrders() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        User student = userRepository.findByUsername(username).orElse(null);
+        User student = userRepository.findByUsername(authentication.getName()).orElse(null);
         if (student == null) return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
 
         return ResponseEntity.ok(orderRepository.findByStudentIdOrderByCreatedAtDesc(student.getId()));
@@ -179,7 +169,7 @@ public class OrderController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).body(new MessageResponse("Error: Access denied"));
         }
 
-        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        Map<String, Object> response = new HashMap<>();
         response.put("token", order.getToken() != null ? order.getToken().getTokenNumber() : "N/A");
         response.put("status", order.getStatus().name());
 
@@ -197,11 +187,10 @@ public class OrderController {
             return ResponseEntity.ok(response);
         }
 
-        // Active statuses: PLACED, ACCEPTED, PREPARING
-        java.time.LocalDateTime startOfDay = order.getCreatedAt().toLocalDate().atStartOfDay();
-        java.time.LocalDateTime endOfDay = order.getCreatedAt().toLocalDate().atTime(23, 59, 59, 999999999);
+        LocalDateTime startOfDay = order.getCreatedAt().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = order.getCreatedAt().toLocalDate().atTime(23, 59, 59, 999999999);
         
-        List<OrderStatus> activeStatuses = java.util.Arrays.asList(OrderStatus.PLACED, OrderStatus.ACCEPTED, OrderStatus.PREPARING);
+        List<OrderStatus> activeStatuses = Arrays.asList(OrderStatus.PLACED, OrderStatus.ACCEPTED, OrderStatus.PREPARING);
         List<Order> activeOrders = orderRepository.findByStatusInAndCreatedAtBetweenOrderByCreatedAtAsc(activeStatuses, startOfDay, endOfDay);
 
         int ordersAhead = 0;
@@ -235,108 +224,31 @@ public class OrderController {
 
     @PutMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
-    @Transactional
     public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, @RequestBody com.campus.canteen.dto.OrderStatusUpdateRequest request) {
-        Order order = orderRepository.findById(id).orElse(null);
-        if (order == null) return ResponseEntity.badRequest().body(new MessageResponse("Error: Order not found"));
-
-        OrderStatus oldStatus = order.getStatus();
-        OrderStatus newStatus = request.getStatus();
-
-        // Validate status transition
-        boolean valid = false;
-        if (oldStatus == OrderStatus.PLACED && (newStatus == OrderStatus.ACCEPTED || newStatus == OrderStatus.REJECTED)) valid = true;
-        if (oldStatus == OrderStatus.ACCEPTED && newStatus == OrderStatus.PREPARING) valid = true;
-        if (oldStatus == OrderStatus.PREPARING && newStatus == OrderStatus.READY) valid = true;
-        if (oldStatus == OrderStatus.READY && newStatus == OrderStatus.COLLECTED) valid = true;
-
-        if (!valid) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Invalid status transition from " + oldStatus + " to " + newStatus));
-        }
-
-        order.setStatus(newStatus);
-        
-        if (newStatus == OrderStatus.REJECTED && order.getPayment() != null && order.getPayment().getStatus() == PaymentStatus.SUCCESS) {
-            order.getPayment().setStatus(PaymentStatus.REFUNDED);
-            if (com.campus.canteen.model.PaymentMethod.WALLET.equals(order.getPayment().getMethod())) {
-                User student = order.getStudent();
-                student.setWalletBalance(student.getWalletBalance().add(order.getPayment().getAmount()));
-                userRepository.save(student);
-            }
-        }
-        
-        orderRepository.save(order);
-
-        // Get current staff user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User staff = userRepository.findByUsername(authentication.getName()).orElse(null);
+        if (staff == null) return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
 
-        // Create Status History
-        OrderStatusHistory history = new OrderStatusHistory();
-        history.setOrder(order);
-        history.setOldStatus(oldStatus);
-        history.setNewStatus(newStatus);
-        history.setChangedBy(staff);
-        orderStatusHistoryRepository.save(history);
-
-        // Create Notification
-        Notification notification = new Notification();
-        notification.setUser(order.getStudent());
-        String tokenNumber = order.getToken() != null ? order.getToken().getTokenNumber() : String.valueOf(order.getId());
-        String msg = "";
-        switch (newStatus) {
-            case ACCEPTED: msg = "Your order " + tokenNumber + " has been accepted."; break;
-            case PREPARING: msg = "Your order " + tokenNumber + " is being prepared."; break;
-            case READY: msg = "Your order " + tokenNumber + " is ready for collection."; break;
-            case REJECTED: msg = "Your order " + tokenNumber + " was rejected and your payment has been refunded."; break;
-            case COLLECTED: msg = "Your order " + tokenNumber + " has been collected."; break;
-            default: msg = "Your order " + tokenNumber + " status is " + newStatus;
+        try {
+            Order order = orderService.updateOrderStatus(id, request.getStatus(), staff);
+            return ResponseEntity.ok(order);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
         }
-        notification.setMessage(msg);
-        notificationRepository.save(notification);
-
-        return ResponseEntity.ok(order);
     }
 
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasRole('STUDENT')")
-    @Transactional
     public ResponseEntity<?> cancelOrder(@PathVariable Long id) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User student = userRepository.findByUsername(authentication.getName()).orElse(null);
         if (student == null) return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
 
-        Order order = orderRepository.findById(id).orElse(null);
-        if (order == null || !order.getStudent().getId().equals(student.getId())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Order not found or access denied"));
+        try {
+            Order order = orderService.cancelOrder(id, student);
+            return ResponseEntity.ok(order);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
         }
-
-        if (order.getStatus() != OrderStatus.PLACED) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Only PLACED orders can be cancelled"));
-        }
-
-        order.setStatus(OrderStatus.CANCELLED);
-        if (order.getPayment() != null && order.getPayment().getStatus() == PaymentStatus.SUCCESS) {
-            order.getPayment().setStatus(PaymentStatus.REFUNDED);
-            if (com.campus.canteen.model.PaymentMethod.WALLET.equals(order.getPayment().getMethod())) {
-                student.setWalletBalance(student.getWalletBalance().add(order.getPayment().getAmount()));
-                userRepository.save(student);
-            }
-        }
-        orderRepository.save(order);
-
-        OrderStatusHistory history = new OrderStatusHistory();
-        history.setOrder(order);
-        history.setOldStatus(OrderStatus.PLACED);
-        history.setNewStatus(OrderStatus.CANCELLED);
-        history.setChangedBy(student);
-        orderStatusHistoryRepository.save(history);
-
-        Notification notification = new Notification();
-        notification.setUser(student);
-        notification.setMessage("Order cancelled. Your payment has been refunded.");
-        notificationRepository.save(notification);
-
-        return ResponseEntity.ok(order);
     }
 }

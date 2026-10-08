@@ -12,6 +12,7 @@ import com.campus.canteen.model.PaymentMethod;
 
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
+    java.util.Optional<Payment> findByTransactionReference(String transactionReference);
     
     @Query("SELECT p FROM Payment p WHERE " +
            "(:status IS NULL OR p.status = :status) AND " +

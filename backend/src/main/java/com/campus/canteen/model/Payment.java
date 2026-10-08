@@ -31,6 +31,8 @@ public class Payment {
 
     private String transactionReference;
 
+    private String razorpayPaymentId;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -48,6 +50,8 @@ public class Payment {
     public void setStatus(PaymentStatus status) { this.status = status; }
     public String getTransactionReference() { return transactionReference; }
     public void setTransactionReference(String transactionReference) { this.transactionReference = transactionReference; }
+    public String getRazorpayPaymentId() { return razorpayPaymentId; }
+    public void setRazorpayPaymentId(String razorpayPaymentId) { this.razorpayPaymentId = razorpayPaymentId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

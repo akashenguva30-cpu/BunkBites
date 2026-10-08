@@ -20,7 +20,25 @@ export default function CampusPay({ cart, cartTotal, onClose, onSuccess }) {
     fetchProfile();
   }, []);
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleProcessPayment = async () => {
+    if (method === 'RAZORPAY') {
+      return handleRazorpayPayment();
+    }
+    
     setStep('PROCESSING');
     try {
       const items = cart.map(c => ({ menuItemId: c.menuItem.id, quantity: c.quantity }));
@@ -36,6 +54,74 @@ export default function CampusPay({ cart, cartTotal, onClose, onSuccess }) {
       } else {
         setOrderResult({ message: err.response?.data?.message || err.message });
       }
+      setStep('FAILURE');
+    }
+  };
+
+  const handleRazorpayPayment = async () => {
+    setStep('PROCESSING');
+    try {
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded) {
+        setOrderResult({ message: 'Failed to load Razorpay SDK. Are you online?' });
+        setStep('FAILURE');
+        return;
+      }
+
+      const items = cart.map(c => ({ menuItemId: c.menuItem.id, quantity: c.quantity }));
+      const payload = { items, paymentMethod: method, paymentDetails: '' };
+      
+      const res = await api.post('/orders/razorpay/create-order', payload);
+      const { razorpayOrderId, amount, currency, keyId } = res.data;
+
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency,
+        name: "Smart Campus Canteen",
+        description: "Canteen Order",
+        order_id: razorpayOrderId,
+        method: {
+          upi: true,
+          card: true,
+          netbanking: true,
+          wallet: true
+        },
+        handler: async function (response) {
+          setStep('VERIFICATION_PENDING');
+          try {
+            const verifyPayload = {
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature
+            };
+            const verifyRes = await api.post('/orders/razorpay/verify', verifyPayload);
+            setOrderResult(verifyRes.data);
+            setStep('SUCCESS');
+          } catch (err) {
+            setOrderResult({ message: err.response?.data?.message || 'Payment verification failed' });
+            setStep('FAILURE');
+          }
+        },
+        modal: {
+          ondismiss: function() {
+            setOrderResult({ message: 'Payment cancelled by user' });
+            setStep('FAILURE');
+          }
+        },
+        theme: {
+          color: "var(--primary-color)"
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response){
+          setOrderResult({ message: response.error.description || 'Payment failed' });
+          setStep('FAILURE');
+      });
+      rzp.open();
+    } catch (err) {
+      setOrderResult({ message: err.response?.data?.message || err.message });
       setStep('FAILURE');
     }
   };
@@ -77,21 +163,16 @@ export default function CampusPay({ cart, cartTotal, onClose, onSuccess }) {
 
       <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: 'var(--text-primary)' }}>Payment method</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <button onClick={() => setMethod('UPI')} style={methodButtonStyle('UPI')}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: method === 'UPI' ? '6px solid var(--primary-color)' : '2px solid var(--border-color)', boxSizing: 'border-box' }}></div>
-          UPI
-        </button>
-        <button onClick={() => setMethod('CARD')} style={methodButtonStyle('CARD')}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: method === 'CARD' ? '6px solid var(--primary-color)' : '2px solid var(--border-color)', boxSizing: 'border-box' }}></div>
-          Card
-        </button>
         <button onClick={() => setMethod('WALLET')} style={methodButtonStyle('WALLET')}>
           <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: method === 'WALLET' ? '6px solid var(--primary-color)' : '2px solid var(--border-color)', boxSizing: 'border-box' }}></div>
           Campus Wallet
         </button>
-        <button onClick={() => setMethod('NET_BANKING')} style={methodButtonStyle('NET_BANKING')}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: method === 'NET_BANKING' ? '6px solid var(--primary-color)' : '2px solid var(--border-color)', boxSizing: 'border-box' }}></div>
-          Net Banking
+        <button onClick={() => setMethod('RAZORPAY')} style={methodButtonStyle('RAZORPAY')}>
+          <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: method === 'RAZORPAY' ? '6px solid var(--primary-color)' : '2px solid var(--border-color)', boxSizing: 'border-box' }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span>Razorpay</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Pay securely using Razorpay</span>
+          </div>
         </button>
       </div>
 
@@ -110,38 +191,16 @@ export default function CampusPay({ cart, cartTotal, onClose, onSuccess }) {
     return (
       <div>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: 'var(--text-primary)' }}>CAMPUSPAY</h3>
-        
-        {method === 'UPI' && (
-          <input 
-            type="text" 
-            placeholder="Enter UPI ID (e.g. user@upi)" 
-            value={paymentDetails} 
-            onChange={e => setPaymentDetails(e.target.value)} 
-            style={inputStyle} 
-          />
-        )}
-        {method === 'CARD' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <input type="text" placeholder="Card Number" value={paymentDetails} onChange={e => setPaymentDetails(e.target.value)} style={inputStyle} />
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <input type="text" placeholder="MM/YY" style={inputStyle} />
-              <input type="text" placeholder="CVV" style={inputStyle} />
-            </div>
-          </div>
-        )}
-        {method === 'NET_BANKING' && (
-          <select value={paymentDetails} onChange={e => setPaymentDetails(e.target.value)} style={inputStyle}>
-            <option value="">Select Bank</option>
-            <option value="SBI">State Bank of India</option>
-            <option value="HDFC">HDFC Bank</option>
-            <option value="ICICI">ICICI Bank</option>
-            <option value="fail">Simulate Failure</option>
-          </select>
-        )}
         {method === 'WALLET' && (
           <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', marginBottom: '16px', border: '1px solid var(--border-color)', backgroundColor: 'var(--surface-color)' }}>
             <p style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '500' }}>Campus Wallet</p>
             <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>Balance: ₹{walletBalance.toFixed(2)}</p>
+          </div>
+        )}
+        {method === 'RAZORPAY' && (
+          <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', marginBottom: '16px', border: '1px solid var(--border-color)', backgroundColor: 'var(--surface-color)' }}>
+            <p style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '500' }}>Razorpay Secure Checkout</p>
+            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>You will be redirected to Razorpay to complete your payment.</p>
           </div>
         )}
         
@@ -213,6 +272,10 @@ export default function CampusPay({ cart, cartTotal, onClose, onSuccess }) {
             <p style={{ margin: 0, fontSize: '15px', color: 'var(--text-secondary)' }}>Required: ₹{cartTotal.toFixed(2)}</p>
           </div>
         )}
+
+        {orderResult?.message && !isInsufficientBalance && (
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>{orderResult.message}</p>
+        )}
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button onClick={() => setStep('METHOD')} className="primary-btn" style={{ padding: '14px', fontSize: '15px', borderRadius: 'var(--radius-md)' }}>
@@ -223,6 +286,19 @@ export default function CampusPay({ cart, cartTotal, onClose, onSuccess }) {
       </div>
     );
   };
+
+  const renderVerificationPending = () => (
+    <div style={{ textAlign: 'center', padding: '16px 0' }}>
+      <div style={{ fontSize: '32px', marginBottom: '16px', color: 'var(--text-primary)' }}>⏳</div>
+      <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>Payment Received</h3>
+      <p style={{ margin: '0 0 24px 0', color: 'var(--text-secondary)', fontSize: '15px' }}>Verification pending. Please wait for Phase 2C to complete verification.</p>
+      <div style={{ textAlign: 'left', background: 'var(--surface-color)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
+        <p style={{ margin: '0 0 8px 0', fontSize: '13px', wordBreak: 'break-all' }}><strong>Payment ID:</strong> {orderResult?.razorpayPaymentId}</p>
+        <p style={{ margin: '0 0 8px 0', fontSize: '13px', wordBreak: 'break-all' }}><strong>Order ID:</strong> {orderResult?.razorpayOrderId}</p>
+      </div>
+      <button onClick={onClose} className="secondary-btn" style={{ width: '100%', padding: '14px', fontSize: '15px' }}>Close</button>
+    </div>
+  );
 
   return (
     <div style={modalOverlayStyle}>
@@ -244,6 +320,7 @@ export default function CampusPay({ cart, cartTotal, onClose, onSuccess }) {
         {step === 'PROCESSING' && renderProcessing()}
         {step === 'SUCCESS' && renderSuccess()}
         {step === 'FAILURE' && renderFailure()}
+        {step === 'VERIFICATION_PENDING' && renderVerificationPending()}
       </div>
     </div>
   );
