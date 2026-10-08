@@ -124,9 +124,12 @@ export default function StaffOrders() {
       
       {/* Staff Navbar */}
       <nav style={{ backgroundColor: '#111', padding: '0 24px', height: '64px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', letterSpacing: '0.5px' }}>
-            Smart Campus Canteen <span style={{ opacity: 0.5, fontWeight: 'normal' }}>| Staff</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '32px', height: '32px', backgroundColor: '#fff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', boxSizing: 'border-box' }}>
+            <img src="/src/assets/brand/bunkbites-mark.svg" alt="BunkBites Mark" style={{ width: '100%', height: '100%' }} />
+          </div>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
+            BunkBites <span style={{ opacity: 0.6, fontWeight: '500' }}>| Kitchen</span>
           </h2>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>

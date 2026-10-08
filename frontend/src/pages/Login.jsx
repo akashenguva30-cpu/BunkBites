@@ -28,8 +28,10 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-container" style={{ minHeight: '100vh', display: 'flex', backgroundColor: 'var(--bg-color)', flexDirection: 'row' }}>
+    <div className="auth-container" style={{ minHeight: '100vh', display: 'flex', backgroundColor: 'var(--bg-color)', flexDirection: 'row', position: 'relative' }}>
       
+
+
       {/* Left Side (Visual Brand Area) */}
       <div className="auth-left" style={{
         flex: '0 0 45%',
@@ -53,13 +55,7 @@ export default function Login() {
           mixBlendMode: 'luminosity'
         }} />
         
-        {/* Content over image */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '32px', height: '32px', backgroundColor: '#fff', color: 'var(--primary-color)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px' }}>
-            C
-          </div>
-          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '700', letterSpacing: '-0.5px' }}>Smart Campus Canteen</h1>
-        </div>
+
 
         <div className="auth-hero-text" style={{ position: 'relative', zIndex: 1, marginTop: 'auto' }}>
           <h2 style={{ fontSize: '56px', fontWeight: '800', lineHeight: '1.1', margin: '0 0 16px 0', letterSpacing: '-1.5px' }}>
@@ -75,10 +71,17 @@ export default function Login() {
       <div className="auth-right" style={{
         flex: 1,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '32px'
+        padding: '32px',
+        backgroundColor: '#FFFFFF'
       }}>
+        {/* Brand Logo centered in right pane */}
+        <div style={{ marginBottom: '64px', textAlign: 'center' }}>
+          <img src="/src/assets/brand/bunkbites-logo-image.png" alt="BunkBites Logo" style={{ width: '400px', maxWidth: '85vw', height: 'auto' }} />
+        </div>
+
         <div style={{ width: '100%', maxWidth: '380px' }}>
           <div style={{ marginBottom: '40px' }}>
             <h2 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Welcome back</h2>
@@ -193,6 +196,7 @@ export default function Login() {
             min-height: 180px !important;
             justify-content: flex-end !important;
           }
+
           .auth-hero-text {
             display: none !important;
           }

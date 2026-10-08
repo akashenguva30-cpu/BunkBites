@@ -56,9 +56,9 @@ export default function StudentNavbar() {
       top: 0,
       zIndex: 100
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>C</div>
-        <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Smart Campus Canteen</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <img src="/src/assets/brand/bunkbites-mark.svg" alt="BunkBites Mark" style={{ width: '32px', height: '32px' }} />
+        <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>BunkBites</h2>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

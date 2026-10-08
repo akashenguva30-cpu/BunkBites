@@ -32,11 +32,14 @@ export default function AdminSidebar() {
       flexDirection: 'column',
       boxSizing: 'border-box'
     }}>
-      <div style={{ marginBottom: '48px' }}>
-        <h2 style={{ margin: '0', fontSize: '18px', fontWeight: '800', color: '#111', letterSpacing: '-0.5px', lineHeight: '1.2' }}>
-          SMART CAMPUS
-        </h2>
-        <span style={{ color: '#e74c3c', fontSize: '14px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>ADMIN</span>
+      <div style={{ marginBottom: '48px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <img src="/src/assets/brand/bunkbites-mark.svg" alt="BunkBites Mark" style={{ width: '32px', height: '32px' }} />
+        <div>
+          <h2 style={{ margin: '0', fontSize: '18px', fontWeight: '800', color: '#111', letterSpacing: '-0.5px', lineHeight: '1.2' }}>
+            BunkBites
+          </h2>
+          <span style={{ color: '#e74c3c', fontSize: '12px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>ADMIN</span>
+        </div>
       </div>
       
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
