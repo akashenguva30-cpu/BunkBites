@@ -1,0 +1,197 @@
+import React, { useEffect, useState } from 'react';
+import api from '../api/axiosConfig';
+import { useNavigate, Link } from 'react-router-dom';
+
+export default function AdminUsers() {
+  const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  
+  const [showModal, setShowModal] = useState(false);
+  const [staffUsername, setStaffUsername] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffConfirmPassword, setStaffConfirmPassword] = useState('');
+  const [modalError, setModalError] = useState('');
+  
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchUsers();
+  }, [search, roleFilter]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get(`/admin/users?search=${search}&role=${roleFilter}`);
+      setUsers(res.data);
+    } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) navigate('/');
+    }
+  };
+
+  const handleCreateStaff = async (e) => {
+    e.preventDefault();
+    setModalError('');
+    if (staffPassword !== staffConfirmPassword) {
+      setModalError("Passwords do not match.");
+      return;
+    }
+    
+    try {
+      await api.post('/admin/users/staff', {
+        username: staffUsername,
+        email: staffEmail,
+        password: staffPassword
+      });
+      alert('Staff created successfully');
+      setShowModal(false);
+      setStaffUsername('');
+      setStaffEmail('');
+      setStaffPassword('');
+      setStaffConfirmPassword('');
+      fetchUsers();
+    } catch (err) {
+      setModalError(err.response?.data?.message || 'Error creating staff');
+    }
+  };
+
+  const toggleUserStatus = async (user) => {
+    try {
+      await api.put(`/admin/users/${user.id}/status`, {
+        enabled: !user.enabled
+      });
+      fetchUsers();
+    } catch (err) {
+      alert("Error: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar */}
+      <div style={{ width: '250px', backgroundColor: '#333', color: 'white', padding: '20px' }}>
+        <h2>Admin Panel</h2>
+        <ul style={{ listStyleType: 'none', padding: 0 }}>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/dashboard" style={{ color: 'white', textDecoration: 'none' }}>Dashboard</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin" style={{ color: 'white', textDecoration: 'none' }}>Menu & Categories</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/staff/orders" style={{ color: 'white', textDecoration: 'none' }}>Orders</Link></li>
+          
+          <li style={{ marginBottom: '15px' }}><button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>?? Profile</button></li>
+          <li style={{ marginBottom: '15px' }}><button onClick={() => { sessionStorage.clear(); navigate('/'); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>Logout</button></li>
+        
+      </div>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, padding: '20px', backgroundColor: '#f9f9f9', position: 'relative' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>USER MANAGEMENT</h2>
+          <button onClick={() => setShowModal(true)} style={{ padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            + Create Staff
+          </button>
+        </div>
+        
+        <div style={{ margin: '20px 0', display: 'flex', gap: '20px' }}>
+          <input 
+            type="text" 
+            placeholder="Search users..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ padding: '8px', width: '300px' }}
+          />
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ padding: '8px' }}>
+            <option value="ALL">All</option>
+            <option value="STUDENT">Students</option>
+            <option value="STAFF">Staff</option>
+            <option value="ADMIN">Admins</option>
+          </select>
+        </div>
+
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Username</th>
+              <th style={thStyle}>Email</th>
+              <th style={thStyle}>Role</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map(u => (
+              <tr key={u.id}>
+                <td style={tdStyle}>{u.username}</td>
+                <td style={tdStyle}>{u.email}</td>
+                <td style={tdStyle}>{u.role.replace('ROLE_', '')}</td>
+                <td style={tdStyle}>
+                  {u.enabled ? (
+                    <span style={{ color: 'green', fontWeight: 'bold' }}>Active</span>
+                  ) : (
+                    <span style={{ color: 'red', fontWeight: 'bold' }}>Disabled</span>
+                  )}
+                </td>
+                <td style={tdStyle}>
+                  {u.role === 'ROLE_ADMIN' ? (
+                    <span style={{ color: '#888', fontStyle: 'italic' }}>Protected</span>
+                  ) : (
+                    <button 
+                      onClick={() => toggleUserStatus(u)}
+                      style={{
+                        backgroundColor: u.enabled ? '#f44336' : '#2196F3',
+                        color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'
+                      }}
+                    >
+                      {u.enabled ? 'Disable' : 'Enable'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {users.length === 0 && (
+              <tr><td colSpan="5" style={{...tdStyle, textAlign: 'center'}}>No users found.</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Modal */}
+        {showModal && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '400px', boxShadow: '0 4px 8px rgba(0,0,0,0.2)' }}>
+              <h2>Create Staff Account</h2>
+              {modalError && <div style={{ color: 'red', marginBottom: '10px' }}>{modalError}</div>}
+              <form onSubmit={handleCreateStaff} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <input required type="text" placeholder="Username" value={staffUsername} onChange={(e) => setStaffUsername(e.target.value)} style={{ padding: '8px' }} />
+                <input required type="email" placeholder="Email" value={staffEmail} onChange={(e) => setStaffEmail(e.target.value)} style={{ padding: '8px' }} />
+                <input required type="password" placeholder="Password" value={staffPassword} onChange={(e) => setStaffPassword(e.target.value)} style={{ padding: '8px' }} />
+                <input required type="password" placeholder="Confirm Password" value={staffConfirmPassword} onChange={(e) => setStaffConfirmPassword(e.target.value)} style={{ padding: '8px' }} />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                  <button type="button" onClick={() => setShowModal(false)} style={{ padding: '8px 15px' }}>Cancel</button>
+                  <button type="submit" style={{ padding: '8px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', cursor: 'pointer' }}>Create Staff</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  backgroundColor: 'white',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+};
+
+const thStyle = {
+  padding: '12px',
+  textAlign: 'left',
+  borderBottom: '2px solid #ddd',
+  backgroundColor: '#f2f2f2'
+};
+
+const tdStyle = {
+  padding: '12px',
+  borderBottom: '1px solid #ddd'
+};

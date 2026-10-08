@@ -1,0 +1,199 @@
+import React, { useEffect, useState } from 'react';
+import api from '../api/axiosConfig';
+import { useNavigate, Link } from 'react-router-dom';
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState(null);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchStats();
+    fetchFeedbacks();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get('/admin/dashboard');
+      setStats(res.data);
+    } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) navigate('/');
+    }
+  };
+
+  const fetchFeedbacks = async () => {
+    try {
+      const res = await api.get('/feedback/all');
+      setFeedbacks(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (!stats) return <div style={{ padding: '20px' }}>Loading...</div>;
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar */}
+      <div style={{ width: '250px', backgroundColor: '#333', color: 'white', padding: '20px' }}>
+        <h2>Admin Panel</h2>
+        <ul style={{ listStyleType: 'none', padding: 0 }}>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/dashboard" style={{ color: 'white', textDecoration: 'none' }}>Dashboard</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin" style={{ color: 'white', textDecoration: 'none' }}>Menu & Categories</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/staff/orders" style={{ color: 'white', textDecoration: 'none' }}>Process Orders (Staff)</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/users" style={{ color: 'white', textDecoration: 'none' }}>Users</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/orders" style={{ color: 'white', textDecoration: 'none' }}>All Orders</Link></li>
+          
+          <li style={{ marginBottom: '15px' }}><button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>?? Profile</button></li>
+          <li style={{ marginBottom: '15px' }}><button onClick={() => { sessionStorage.clear(); navigate('/'); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>Logout</button></li>
+        
+      </div>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, padding: '20px', backgroundColor: '#f9f9f9' }}>
+        <h2>Admin Dashboard</h2>
+        
+        {/* Summary Cards */}
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap' }}>
+          <div style={cardStyle}>
+            <h3>Total Orders</h3>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.totalOrdersToday}</p>
+          </div>
+          <div style={cardStyle}>
+            <h3>Completed Orders</h3>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.completedOrdersToday}</p>
+          </div>
+          <div style={cardStyle}>
+            <h3>Active Orders</h3>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.activeOrdersToday}</p>
+          </div>
+          <div style={cardStyle}>
+            <h3>Cancelled Orders</h3>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.cancelledOrdersToday}</p>
+          </div>
+          <div style={{...cardStyle, backgroundColor: '#e3f2fd'}}>
+            <h3>Revenue Today</h3>
+            <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1976d2' }}>₹{stats.revenueToday.toFixed(2)}</p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '40px' }}>
+          {/* Popular Items */}
+          <div style={{ flex: 1 }}>
+            <h3>Popular Items</h3>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Item Name</th>
+                  <th style={thStyle}>Quantity Ordered</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.popularItems && stats.popularItems.map((item, idx) => (
+                  <tr key={idx}>
+                    <td style={tdStyle}>{item.name}</td>
+                    <td style={tdStyle}>{item.quantityOrdered}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Recent Orders */}
+          <div style={{ flex: 2 }}>
+            <h3>Recent Orders</h3>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Token</th>
+                  <th style={thStyle}>Student</th>
+                  <th style={thStyle}>Total</th>
+                  <th style={thStyle}>Payment</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.recentOrders && stats.recentOrders.map(order => (
+                  <tr key={order.id}>
+                    <td style={tdStyle}>{order.token?.tokenNumber || order.id}</td>
+                    <td style={tdStyle}>{order.student?.username}</td>
+                    <td style={tdStyle}>₹{order.totalAmount}</td>
+                    <td style={tdStyle}>{order.payment?.status}</td>
+                    <td style={tdStyle}><strong>{order.status}</strong></td>
+                    <td style={tdStyle}>{new Date(order.createdAt).toLocaleTimeString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Recent Feedback */}
+        <div style={{ marginTop: '40px' }}>
+          <h3>Recent Feedback</h3>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Date</th>
+                <th style={thStyle}>Student</th>
+                <th style={thStyle}>Rating</th>
+                <th style={thStyle}>Comment</th>
+                <th style={thStyle}>Order ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {feedbacks.map(fb => (
+                <tr key={fb.id}>
+                  <td style={tdStyle}>{new Date(fb.createdAt).toLocaleDateString()}</td>
+                  <td style={tdStyle}>{fb.username}</td>
+                  <td style={tdStyle}>
+                    <span style={{ color: '#ffc107', fontSize: '18px' }}>
+                      {'★'.repeat(fb.rating)}{'☆'.repeat(5 - fb.rating)}
+                    </span>
+                  </td>
+                  <td style={tdStyle}>{fb.comment || '-'}</td>
+                  <td style={tdStyle}>{fb.orderId}</td>
+                </tr>
+              ))}
+              {feedbacks.length === 0 && (
+                <tr>
+                  <td colSpan="5" style={{...tdStyle, textAlign: 'center'}}>No feedback available.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+const cardStyle = {
+  backgroundColor: 'white',
+  padding: '20px',
+  borderRadius: '8px',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  minWidth: '150px',
+  flex: 1
+};
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  backgroundColor: 'white',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+};
+
+const thStyle = {
+  padding: '12px',
+  textAlign: 'left',
+  borderBottom: '2px solid #ddd',
+  backgroundColor: '#f2f2f2'
+};
+
+const tdStyle = {
+  padding: '12px',
+  borderBottom: '1px solid #ddd'
+};

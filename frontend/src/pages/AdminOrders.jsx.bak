@@ -1,0 +1,122 @@
+import React, { useEffect, useState } from 'react';
+import api from '../api/axiosConfig';
+import { useNavigate, Link } from 'react-router-dom';
+
+export default function AdminOrders() {
+  const [orders, setOrders] = useState([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [search, statusFilter]);
+
+  const fetchOrders = async () => {
+    try {
+      const res = await api.get(`/admin/orders?search=${search}&status=${statusFilter}`);
+      setOrders(res.data);
+    } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) navigate('/');
+    }
+  };
+
+  const handleViewOrder = async (id) => {
+    try {
+      const res = await api.get(`/admin/orders/${id}`);
+      setSelectedOrder(res.data);
+    } catch (err) {
+      alert("Error fetching order details");
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar */}
+      <div style={{ width: '250px', backgroundColor: '#333', color: 'white', padding: '20px' }}>
+        <h2>Admin Panel</h2>
+        <ul style={{ listStyleType: 'none', padding: 0 }}>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/dashboard" style={{ color: 'white', textDecoration: 'none' }}>Dashboard</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin" style={{ color: 'white', textDecoration: 'none' }}>Menu & Categories</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/staff/orders" style={{ color: 'white', textDecoration: 'none' }}>Process Orders (Staff)</Link></li>
+          
+          <li style={{ marginBottom: '15px' }}><button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>?? Profile</button></li>
+          <li style={{ marginBottom: '15px' }}><button onClick={() => { sessionStorage.clear(); navigate('/'); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>Logout</button></li>
+        
+              <p><strong>Total Amount:</strong> ₹{selectedOrder.totalAmount}</p>
+
+              <h4>Payment Info</h4>
+              {selectedOrder.payment ? (
+                <div>
+                  <p><strong>Method:</strong> {selectedOrder.payment.method}</p>
+                  <p><strong>Status:</strong> {selectedOrder.payment.status}</p>
+                  <p><strong>Ref:</strong> {selectedOrder.payment.transactionReference}</p>
+                </div>
+              ) : <p>No Payment Record</p>}
+
+              <h4>Status History</h4>
+              <ul style={{ paddingLeft: '20px', fontSize: '14px' }}>
+                {selectedOrder.statusHistory?.map(hist => (
+                  <li key={hist.id}>
+                    {hist.oldStatus} &rarr; {hist.newStatus} on {new Date(hist.changedAt).toLocaleString()} by {hist.changedBy?.username || 'System'}
+                  </li>
+                ))}
+              </ul>
+
+              {selectedOrder.feedback && (
+                <div>
+                  <h4>Feedback</h4>
+                  <p>Rating: {selectedOrder.feedback.rating}/5</p>
+                  <p>Comment: {selectedOrder.feedback.comment}</p>
+                </div>
+              )}
+
+              <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                <button onClick={() => setSelectedOrder(null)} style={{ padding: '8px 16px', cursor: 'pointer' }}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  backgroundColor: 'white',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+};
+
+const thStyle = {
+  padding: '12px',
+  textAlign: 'left',
+  borderBottom: '2px solid #ddd',
+  backgroundColor: '#f2f2f2'
+};
+
+const tdStyle = {
+  padding: '12px',
+  borderBottom: '1px solid #ddd'
+};
+
+const modalOverlayStyle = {
+  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  display: 'flex', justifyContent: 'center', alignItems: 'center',
+  zIndex: 1000
+};
+
+const modalStyle = {
+  backgroundColor: 'white',
+  padding: '30px',
+  borderRadius: '8px',
+  width: '500px',
+  maxHeight: '80vh',
+  overflowY: 'auto',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+};

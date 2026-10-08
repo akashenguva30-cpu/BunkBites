@@ -1,0 +1,248 @@
+import React, { useEffect, useState } from 'react';
+import api from '../api/axiosConfig';
+import { useNavigate, Link } from 'react-router-dom';
+
+export default function AdminPayments() {
+  const [payments, setPayments] = useState([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [methodFilter, setMethodFilter] = useState('ALL');
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchPayments();
+  }, [search, statusFilter, methodFilter]);
+
+  const fetchPayments = async () => {
+    try {
+      const res = await api.get(`/admin/payments?search=${search}&status=${statusFilter}&method=${methodFilter}`);
+      setPayments(res.data);
+    } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) navigate('/');
+    }
+  };
+
+  const handleViewPayment = async (id) => {
+    try {
+      const res = await api.get(`/admin/payments/${id}`);
+      setSelectedPayment(res.data);
+    } catch (err) {
+      alert("Error fetching payment details");
+    }
+  };
+
+  const calculateRevenue = () => {
+    let todayRevenue = 0;
+    let successfulCount = 0;
+    let refundedAmount = 0;
+    let failedCount = 0;
+
+    const today = new Date().toLocaleDateString();
+
+    payments.forEach(p => {
+      const pDate = new Date(p.createdAt).toLocaleDateString();
+      if (pDate === today) {
+        if (p.status === 'SUCCESS') {
+          todayRevenue += p.amount;
+          successfulCount++;
+        }
+        if (p.status === 'REFUNDED') {
+          refundedAmount += p.amount;
+        }
+        if (p.status === 'FAILED') {
+          failedCount++;
+        }
+      }
+    });
+
+    return { todayRevenue, successfulCount, refundedAmount, failedCount };
+  };
+
+  const stats = calculateRevenue();
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar */}
+      <div style={{ width: '250px', backgroundColor: '#333', color: 'white', padding: '20px' }}>
+        <h2>Admin Panel</h2>
+        <ul style={{ listStyleType: 'none', padding: 0 }}>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/dashboard" style={{ color: 'white', textDecoration: 'none' }}>Dashboard</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin" style={{ color: 'white', textDecoration: 'none' }}>Menu & Categories</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/staff/orders" style={{ color: 'white', textDecoration: 'none' }}>Process Orders (Staff)</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/users" style={{ color: 'white', textDecoration: 'none' }}>Users</Link></li>
+          <li style={{ marginBottom: '15px' }}><Link to="/admin/orders" style={{ color: 'white', textDecoration: 'none' }}>All Orders</Link></li>
+          
+          <li style={{ marginBottom: '15px' }}><button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>?? Profile</button></li>
+          <li style={{ marginBottom: '15px' }}><button onClick={() => { sessionStorage.clear(); navigate('/'); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '16px' }}>Logout</button></li>
+        
+      </div>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, padding: '20px', backgroundColor: '#f9f9f9', position: 'relative' }}>
+        <h2>PAYMENTS MANAGEMENT (ADMIN)</h2>
+        
+        {/* Summary Cards */}
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+          <div style={cardStyle}>
+            <h4>Today's Revenue</h4>
+            <p style={{ fontSize: '24px', color: '#4CAF50', fontWeight: 'bold' }}>₹{stats.todayRevenue.toFixed(2)}</p>
+          </div>
+          <div style={cardStyle}>
+            <h4>Successful Transactions</h4>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.successfulCount}</p>
+          </div>
+          <div style={cardStyle}>
+            <h4>Refunded Amount</h4>
+            <p style={{ fontSize: '24px', color: '#f44336', fontWeight: 'bold' }}>₹{stats.refundedAmount.toFixed(2)}</p>
+          </div>
+          <div style={cardStyle}>
+            <h4>Failed Transactions</h4>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.failedCount}</p>
+          </div>
+        </div>
+        
+        <div style={{ margin: '20px 0', display: 'flex', gap: '20px' }}>
+          <input 
+            type="text" 
+            placeholder="Search Ref, Order ID, User..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ padding: '8px', width: '300px' }}
+          />
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '8px' }}>
+            <option value="ALL">All Statuses</option>
+            <option value="SUCCESS">Success</option>
+            <option value="PENDING">Pending</option>
+            <option value="FAILED">Failed</option>
+            <option value="REFUNDED">Refunded</option>
+          </select>
+          <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} style={{ padding: '8px' }}>
+            <option value="ALL">All Methods</option>
+            <option value="WALLET">Wallet</option>
+            <option value="UPI">UPI</option>
+            <option value="CARD">Card</option>
+            <option value="NET_BANKING">Net Banking</option>
+            <option value="CASH">Cash</option>
+          </select>
+        </div>
+
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Transaction Ref</th>
+              <th style={thStyle}>Order ID</th>
+              <th style={thStyle}>Student</th>
+              <th style={thStyle}>Method</th>
+              <th style={thStyle}>Amount</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Date</th>
+              <th style={thStyle}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.map(p => (
+              <tr key={p.id}>
+                <td style={tdStyle}>{p.transactionReference || '-'}</td>
+                <td style={tdStyle}>#{p.orderId}</td>
+                <td style={tdStyle}>{p.studentUsername}</td>
+                <td style={tdStyle}>{p.method}</td>
+                <td style={tdStyle}>₹{p.amount}</td>
+                <td style={tdStyle}>
+                  <span style={{ 
+                    fontWeight: 'bold', 
+                    color: p.status === 'SUCCESS' ? 'green' : p.status === 'REFUNDED' ? 'orange' : p.status === 'FAILED' ? 'red' : 'gray' 
+                  }}>
+                    {p.status}
+                  </span>
+                </td>
+                <td style={tdStyle}>{new Date(p.createdAt).toLocaleString()}</td>
+                <td style={tdStyle}>
+                  <button onClick={() => handleViewPayment(p.id)} style={{ padding: '5px 10px', cursor: 'pointer' }}>View</button>
+                </td>
+              </tr>
+            ))}
+            {payments.length === 0 && (
+              <tr><td colSpan="8" style={{...tdStyle, textAlign: 'center'}}>No payments found.</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Details Modal */}
+        {selectedPayment && (
+          <div style={modalOverlayStyle}>
+            <div style={modalStyle}>
+              <h3>Transaction Details</h3>
+              <p><strong>Reference:</strong> {selectedPayment.transactionReference || 'N/A'}</p>
+              <p><strong>Order ID:</strong> #{selectedPayment.orderId}</p>
+              <p><strong>Student:</strong> {selectedPayment.studentUsername}</p>
+              <p><strong>Method:</strong> {selectedPayment.method}</p>
+              <p><strong>Amount:</strong> ₹{selectedPayment.amount}</p>
+              <p><strong>Status:</strong> {selectedPayment.status}</p>
+              <p><strong>Timestamp:</strong> {new Date(selectedPayment.createdAt).toLocaleString()}</p>
+              
+              {selectedPayment.status === 'REFUNDED' && (
+                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '4px' }}>
+                  <strong>Note:</strong> Payment Refunded
+                </div>
+              )}
+              {selectedPayment.method === 'WALLET' && (
+                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#e2e3e5', border: '1px solid #d6d8db', borderRadius: '4px' }}>
+                  <strong>Source:</strong> Campus Wallet
+                </div>
+              )}
+
+              <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                <button onClick={() => setSelectedPayment(null)} style={{ padding: '8px 16px', cursor: 'pointer' }}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+const cardStyle = {
+  backgroundColor: 'white',
+  padding: '20px',
+  borderRadius: '8px',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  flex: 1
+};
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  backgroundColor: 'white',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+};
+
+const thStyle = {
+  padding: '12px',
+  textAlign: 'left',
+  borderBottom: '2px solid #ddd',
+  backgroundColor: '#f2f2f2'
+};
+
+const tdStyle = {
+  padding: '12px',
+  borderBottom: '1px solid #ddd'
+};
+
+const modalOverlayStyle = {
+  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  display: 'flex', justifyContent: 'center', alignItems: 'center',
+  zIndex: 1000
+};
+
+const modalStyle = {
+  backgroundColor: 'white',
+  padding: '30px',
+  borderRadius: '8px',
+  width: '400px',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+};
