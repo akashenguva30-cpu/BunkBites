@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../api/axiosConfig';
 import { useNavigate } from 'react-router-dom';
 import { resolveImageUrl } from '../utils/imageUtils';
+import bunkbitesMark from '../assets/brand/bunkbites-mark.svg';
 
 export default function StaffOrders() {
   const [orders, setOrders] = useState([]);
@@ -126,7 +127,7 @@ export default function StaffOrders() {
       <nav style={{ backgroundColor: '#111', padding: '0 24px', height: '64px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '32px', height: '32px', backgroundColor: '#fff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', boxSizing: 'border-box' }}>
-            <img src="/src/assets/brand/bunkbites-mark.svg" alt="BunkBites Mark" style={{ width: '100%', height: '100%' }} />
+            <img src={bunkbitesMark} alt="BunkBites Mark" style={{ width: '100%', height: '100%' }} />
           </div>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
             BunkBites <span style={{ opacity: 0.6, fontWeight: '500' }}>| Kitchen</span>

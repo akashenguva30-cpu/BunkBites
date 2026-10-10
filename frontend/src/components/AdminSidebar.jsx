@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import bunkbitesMark from '../assets/brand/bunkbites-mark.svg';
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ export default function AdminSidebar() {
       boxSizing: 'border-box'
     }}>
       <div style={{ marginBottom: '48px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <img src="/src/assets/brand/bunkbites-mark.svg" alt="BunkBites Mark" style={{ width: '32px', height: '32px' }} />
+        <img src={bunkbitesMark} alt="BunkBites Mark" style={{ width: '32px', height: '32px' }} />
         <div>
           <h2 style={{ margin: '0', fontSize: '18px', fontWeight: '800', color: '#111', letterSpacing: '-0.5px', lineHeight: '1.2' }}>
             BunkBites

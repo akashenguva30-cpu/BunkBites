@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import bunkbitesLogo from '../assets/brand/bunkbites-logo-image.png';
+import { resolveImageUrl } from '../utils/imageUtils';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -48,7 +50,7 @@ export default function Login() {
         <div style={{
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
-          backgroundImage: `url('http://localhost:8080/uploads/menu/0460ce5d-503f-46ec-ae96-1fcdb6f2e763.jpg')`,
+          backgroundImage: `url('${resolveImageUrl('/uploads/menu/0460ce5d-503f-46ec-ae96-1fcdb6f2e763.jpg')}')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           opacity: 0.25,
@@ -79,7 +81,7 @@ export default function Login() {
       }}>
         {/* Brand Logo centered in right pane */}
         <div style={{ marginBottom: '64px', textAlign: 'center' }}>
-          <img src="/src/assets/brand/bunkbites-logo-image.png" alt="BunkBites Logo" style={{ width: '400px', maxWidth: '85vw', height: 'auto' }} />
+          <img src={bunkbitesLogo} alt="BunkBites Logo" style={{ width: '400px', maxWidth: '85vw', height: 'auto' }} />
         </div>
 
         <div style={{ width: '100%', maxWidth: '380px' }}>

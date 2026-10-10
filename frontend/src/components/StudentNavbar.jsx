@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import bunkbitesMark from '../assets/brand/bunkbites-mark.svg';
 
 export default function StudentNavbar() {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export default function StudentNavbar() {
       zIndex: 100
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <img src="/src/assets/brand/bunkbites-mark.svg" alt="BunkBites Mark" style={{ width: '32px', height: '32px' }} />
+        <img src={bunkbitesMark} alt="BunkBites Mark" style={{ width: '32px', height: '32px' }} />
         <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>BunkBites</h2>
       </div>
 
