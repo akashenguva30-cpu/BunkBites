@@ -1,5 +1,4 @@
 package com.campus.canteen.controller;
-
 import com.campus.canteen.dto.MenuItemRequest;
 import com.campus.canteen.dto.MessageResponse;
 import com.campus.canteen.model.Category;
@@ -8,25 +7,24 @@ import com.campus.canteen.repository.CategoryRepository;
 import com.campus.canteen.repository.FeedbackRepository;
 import com.campus.canteen.repository.MenuItemRepository;
 import com.campus.canteen.repository.OrderRepository;
-import com.campus.canteen.service.CloudinaryService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.Map;
-import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/menu")
@@ -44,9 +42,6 @@ public class MenuItemController {
 
     @Autowired
     private OrderRepository orderRepository;
-
-    @Autowired
-    private CloudinaryService cloudinaryService;
 
     @Value("${app.upload.dir:uploads/menu}")
     private String uploadDir;
@@ -131,50 +126,55 @@ public class MenuItemController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    
     @PostMapping("/upload-image")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
         try {
             String contentType = file.getContentType();
-            if (contentType == null || !(contentType.equals("image/jpeg") || contentType.equals("image/png") || contentType.equals("image/webp"))) {
-                return ResponseEntity.badRequest().body(new MessageResponse("Error: Invalid file type. Only JPEG, PNG, and WEBP are allowed."));
+
+            if (contentType == null ||
+                    !(contentType.equals("image/jpeg")
+                            || contentType.equals("image/png")
+                            || contentType.equals("image/webp"))) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse(
+                                "Error: Invalid file type. Only JPEG, PNG, and WEBP are allowed."));
             }
 
-            Map<String, String> response = new HashMap<>();
-
-            // --- Cloudinary path (production) ---
-            // When CLOUDINARY_* env vars are set on Render, upload to Cloudinary for
-            // durable, CDN-backed storage that survives container restarts/redeploys.
-            if (cloudinaryService.isConfigured()) {
-                String cloudUrl = cloudinaryService.uploadFile(file);
-                response.put("imageUrl", cloudUrl);
-                return ResponseEntity.ok(response);
-            }
-
-            // --- Local-disk fallback (development) ---
-            // Used only when Cloudinary credentials are absent (local dev).
-            Path uploadPath = Paths.get(uploadDir);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Files.createDirectories(uploadPath);
 
             String originalFilename = file.getOriginalFilename();
             String extension = "";
+
             if (originalFilename != null && originalFilename.lastIndexOf(".") > 0) {
                 extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
 
-            String newFilename = UUID.randomUUID().toString() + extension;
-            Path filePath = uploadPath.resolve(newFilename);
-            Files.copy(file.getInputStream(), filePath);
+            String newFilename = UUID.randomUUID() + extension;
+            Path filePath = uploadPath.resolve(newFilename).normalize();
 
+            if (!filePath.startsWith(uploadPath)) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Error: Invalid filename"));
+            }
+
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, filePath);
+            }
+
+            Map<String, String> response = new HashMap<>();
             response.put("imageUrl", "/uploads/menu/" + newFilename);
+
             return ResponseEntity.ok(response);
 
         } catch (IOException e) {
-            return ResponseEntity.status(500).body(new MessageResponse("Error: Failed to upload file"));
+            return ResponseEntity.status(500)
+                    .body(new MessageResponse("Error: Failed to upload file"));
         }
     }
+
 
     @PostMapping
     @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
