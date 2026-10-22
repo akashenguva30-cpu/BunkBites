@@ -8,6 +8,7 @@ import com.campus.canteen.repository.CategoryRepository;
 import com.campus.canteen.repository.FeedbackRepository;
 import com.campus.canteen.repository.MenuItemRepository;
 import com.campus.canteen.repository.OrderRepository;
+import com.campus.canteen.service.CloudinaryService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,9 @@ public class MenuItemController {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     @Value("${app.upload.dir:uploads/menu}")
     private String uploadDir;
@@ -136,6 +140,19 @@ public class MenuItemController {
                 return ResponseEntity.badRequest().body(new MessageResponse("Error: Invalid file type. Only JPEG, PNG, and WEBP are allowed."));
             }
 
+            Map<String, String> response = new HashMap<>();
+
+            // --- Cloudinary path (production) ---
+            // When CLOUDINARY_* env vars are set on Render, upload to Cloudinary for
+            // durable, CDN-backed storage that survives container restarts/redeploys.
+            if (cloudinaryService.isConfigured()) {
+                String cloudUrl = cloudinaryService.uploadFile(file);
+                response.put("imageUrl", cloudUrl);
+                return ResponseEntity.ok(response);
+            }
+
+            // --- Local-disk fallback (development) ---
+            // Used only when Cloudinary credentials are absent (local dev).
             Path uploadPath = Paths.get(uploadDir);
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
@@ -151,7 +168,6 @@ public class MenuItemController {
             Path filePath = uploadPath.resolve(newFilename);
             Files.copy(file.getInputStream(), filePath);
 
-            Map<String, String> response = new HashMap<>();
             response.put("imageUrl", "/uploads/menu/" + newFilename);
             return ResponseEntity.ok(response);
 
