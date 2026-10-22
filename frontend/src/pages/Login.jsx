@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import bunkbitesLogo from '../assets/brand/bunkbites-logo-image.png';
-import { resolveImageUrl } from '../utils/imageUtils';
+
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -16,7 +16,7 @@ export default function Login() {
       const res = await api.post('/auth/login', { username, password });
       sessionStorage.setItem('token', res.data.token);
       sessionStorage.setItem('role', res.data.role);
-      
+
       if (res.data.role === 'ROLE_ADMIN') {
         navigate('/admin/dashboard');
       } else if (res.data.role === 'ROLE_STAFF') {
@@ -31,7 +31,7 @@ export default function Login() {
 
   return (
     <div className="auth-container" style={{ minHeight: '100vh', display: 'flex', backgroundColor: 'var(--bg-color)', flexDirection: 'row', position: 'relative' }}>
-      
+
 
 
       {/* Left Side (Visual Brand Area) */}
@@ -50,13 +50,13 @@ export default function Login() {
         <div style={{
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
-          backgroundImage: `url('${resolveImageUrl('/uploads/menu/0460ce5d-503f-46ec-ae96-1fcdb6f2e763.jpg')}')`,
+          backgroundImage: "url('https://res.cloudinary.com/kqbuupei/image/upload/v1792686749/0460ce5d-503f-46ec-ae96-1fcdb6f2e763.jpg')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           opacity: 0.25,
           mixBlendMode: 'luminosity'
         }} />
-        
+
 
 
         <div className="auth-hero-text" style={{ position: 'relative', zIndex: 1, marginTop: 'auto' }}>
@@ -99,17 +99,17 @@ export default function Login() {
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>Username</label>
-              <input 
-                type="text" 
-                placeholder="Enter your username" 
-                value={username} 
-                onChange={e => setUsername(e.target.value)} 
-                required 
-                style={{ 
-                  width: '100%', 
-                  padding: '14px 16px', 
-                  borderRadius: 'var(--radius-sm)', 
-                  border: '1px solid var(--border-color)', 
+              <input
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--surface-color)',
                   fontSize: '15px',
                   outline: 'none',
@@ -127,20 +127,20 @@ export default function Login() {
                 }}
               />
             </div>
-            
+
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>Password</label>
-              <input 
-                type="password" 
-                placeholder="••••••••" 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                required 
-                style={{ 
-                  width: '100%', 
-                  padding: '14px 16px', 
-                  borderRadius: 'var(--radius-sm)', 
-                  border: '1px solid var(--border-color)', 
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--surface-color)',
                   fontSize: '15px',
                   outline: 'none',
@@ -158,14 +158,14 @@ export default function Login() {
                 }}
               />
             </div>
-            
-            <button 
-              type="submit" 
+
+            <button
+              type="submit"
               className="primary-btn"
-              style={{ 
-                padding: '16px', 
-                fontSize: '16px', 
-                fontWeight: '600', 
+              style={{
+                padding: '16px',
+                fontSize: '16px',
+                fontWeight: '600',
                 marginTop: '8px',
                 width: '100%',
                 cursor: 'pointer',
@@ -185,9 +185,10 @@ export default function Login() {
           </div>
         </div>
       </div>
-      
+
       {/* Mobile Styles embedded */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @media (max-width: 768px) {
           .auth-container {
             flex-direction: column !important;
